@@ -10,10 +10,10 @@ variables:
 
 steps:
 - task: PowerShell@2
-  displayName: '🕗 Get pipeline runs between 7PM and 8PM'
+  displayName: 'Get pipeline runs between 7AM and 8AM'
   inputs:
     pwsh: true
-    targetType: 'inline'
+    targetType: 'inline'  # This is required!
     script: |
       $ErrorActionPreference = 'Stop'
 
@@ -43,40 +43,21 @@ steps:
         Authorization = "Bearer $token"
       }
 
-      $outputFile = "$(Build.ArtifactStagingDirectory)\pipeline_runs.txt"
-      $lines = @()
-
       try {
         $response = Invoke-RestMethod -Uri $url -Headers $headers -Method Get
 
         if ($response.count -eq 0) {
           Write-Host "❌ No pipeline runs found in this time window."
-          "No pipeline runs found between $startTimeLocal and $endTimeLocal" | Out-File -FilePath $outputFile -Encoding utf8
         } else {
-          Write-Host "✅ Pipelines run between 7PM-8PM:"
-          $lines += "Pipeline runs between 7PM and 8PM:"
+          Write-Host "✅ Pipelines run between 7AM-8AM:"
           $response.value | ForEach-Object {
-          $pipelineName = $_.definition.name
-          $runTimeUtc = [datetime]$_.startTime
-          $runTimeIST = $runTimeUtc.AddHours(5.5)  # Convert UTC → IST (UTC+5:30)
-
-          Write-Host "- $pipelineName at $runTimeIST (IST)"
-          $lines += "- $pipelineName at $runTimeIST (IST)"
-       }
-
-          $lines | Out-File -FilePath $outputFile -Encoding utf8
+            $pipelineName = $_.definition.name
+            $runTime = $_.startTime
+            Write-Host "- $pipelineName at $runTime"
+          }
         }
       } catch {
         Write-Host "❌ Failed to call Azure DevOps API: $_"
-        "Error: $_" | Out-File -FilePath $outputFile -Encoding utf8
       }
   env:
     SYSTEM_ACCESSTOKEN: $(System.AccessToken)
-
-# 📤 Publish the output file so it’s downloadable from the pipeline run
-- task: PublishBuildArtifacts@1
-  displayName: '📦 Publish pipeline run results'
-  inputs:
-    PathtoPublish: '$(Build.ArtifactStagingDirectory)'
-    ArtifactName: 'pipeline-report'
-    publishLocation: 'Container'

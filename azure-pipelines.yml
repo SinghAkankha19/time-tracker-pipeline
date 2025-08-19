@@ -56,11 +56,14 @@ steps:
           Write-Host "✅ Pipelines run between 7PM-8PM:"
           $lines += "Pipeline runs between 7PM and 8PM:"
           $response.value | ForEach-Object {
-            $pipelineName = $_.definition.name
-            $runTime = $_.startTime
-            Write-Host "- $pipelineName at $runTime"
-            $lines += "- $pipelineName at $runTime"
-          }
+          $pipelineName = $_.definition.name
+          $runTimeUtc = [datetime]$_.startTime
+          $runTimeIST = $runTimeUtc.AddHours(5.5)  # Convert UTC → IST (UTC+5:30)
+
+          Write-Host "- $pipelineName at $runTimeIST (IST)"
+          $lines += "- $pipelineName at $runTimeIST (IST)"
+       }
+
           $lines | Out-File -FilePath $outputFile -Encoding utf8
         }
       } catch {

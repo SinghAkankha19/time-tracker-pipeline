@@ -10,14 +10,13 @@ variables:
 
 steps:
 - task: PowerShell@2
-  displayName: 'Get pipeline runs between 7AM and 8AM'
+  displayName: '🕗 Get pipeline runs between 7PM and 8PM'
   inputs:
     pwsh: true
-    targetType: 'inline'  # This is required!
+    targetType: 'inline'
     script: |
       $ErrorActionPreference = 'Stop'
 
-      $localTimeZoneOffset = (Get-TimeZone).BaseUtcOffset.TotalHours
       $now = Get-Date
       $today = $now.Date
       $startTimeLocal = $today.AddHours(19)  # 7 PM
@@ -43,28 +42,40 @@ steps:
         Authorization = "Bearer $token"
       }
 
+      $outputFile = "$(Build.ArtifactStagingDirectory)\pipeline_runs.txt"
+      $lines = @()
+
       try {
         $response = Invoke-RestMethod -Uri $url -Headers $headers -Method Get
 
         if ($response.count -eq 0) {
           Write-Host "❌ No pipeline runs found in this time window."
+          $lines += "No pipeline runs found between $startTimeLocal and $endTimeLocal"
         } else {
-          Write-Host "✅ Pipelines run between 7AM-8AM:"
-         $response.value | ForEach-Object {
-          $pipelineName = $_.definition.name
-          $runTimeUtc = [datetime]$_.startTime
-          $runTimeIST = $runTimeUtc.AddHours(5.5)  # Convert UTC → IST (UTC+5:30)
+          Write-Host "✅ Pipelines run between 7PM and 8PM (IST):"
+          $lines += "Pipeline runs between 7PM and 8PM (IST):"
 
-          Write-Host "- $pipelineName at $runTimeIST (IST)"
-          $lines += "- $pipelineName at $runTimeIST (IST)"
-       }
+          $response.value | ForEach-Object {
+            $pipelineName = $_.definition.name
+            $runTimeUtc = [datetime]$_.startTime
+            $runTimeIST = $runTimeUtc.AddHours(5.5)
 
+            Write-Host "- $pipelineName at $runTimeIST (IST)"
+            $lines += "- $pipelineName at $runTimeIST (IST)"
+          }
         }
+
+        # Save to file
+        $lines | Out-File -FilePath $outputFile -Encoding utf8
+
       } catch {
         Write-Host "❌ Failed to call Azure DevOps API: $_"
+        "Error: $_" | Out-File -FilePath $outputFile -Encoding utf8
       }
+
   env:
     SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+
 # 📤 Publish the output file so it’s downloadable from the pipeline run
 - task: PublishBuildArtifacts@1
   displayName: '📦 Publish pipeline run results'

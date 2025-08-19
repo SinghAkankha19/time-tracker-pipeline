@@ -65,3 +65,10 @@ steps:
       }
   env:
     SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+# 📤 Publish the output file so it’s downloadable from the pipeline run
+- task: PublishBuildArtifacts@1
+  displayName: '📦 Publish pipeline run results'
+  inputs:
+    PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+    ArtifactName: 'pipeline-report'
+    publishLocation: 'Container'

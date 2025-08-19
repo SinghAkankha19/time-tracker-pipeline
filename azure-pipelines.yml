@@ -50,11 +50,15 @@ steps:
           Write-Host "❌ No pipeline runs found in this time window."
         } else {
           Write-Host "✅ Pipelines run between 7AM-8AM:"
-          $response.value | ForEach-Object {
-            $pipelineName = $_.definition.name
-            $runTime = $_.startTime
-            Write-Host "- $pipelineName at $runTime"
-          }
+         $response.value | ForEach-Object {
+          $pipelineName = $_.definition.name
+          $runTimeUtc = [datetime]$_.startTime
+          $runTimeIST = $runTimeUtc.AddHours(5.5)  # Convert UTC → IST (UTC+5:30)
+
+          Write-Host "- $pipelineName at $runTimeIST (IST)"
+          $lines += "- $pipelineName at $runTimeIST (IST)"
+       }
+
         }
       } catch {
         Write-Host "❌ Failed to call Azure DevOps API: $_"

@@ -10,7 +10,7 @@ variables:
 
 steps:
 - task: PowerShell@2
-  displayName: '🕗 Get pipeline runs between 7PM and 8PM'
+  displayName: 'Get pipeline runs between 7PM and 8PM'
   inputs:
     pwsh: true
     targetType: 'inline'
@@ -20,13 +20,13 @@ steps:
       $now = Get-Date
       $today = $now.Date
       $startTimeLocal = $today.AddHours(19)  # 7 PM
-      $endTimeLocal = $today.AddHours(20)    # 8 PM
+      $endTimeLocal = $today.AddHours(24)    # 12 AM
 
       $startTime = $startTimeLocal.ToUniversalTime().ToString("o")
       $endTime = $endTimeLocal.ToUniversalTime().ToString("o")
 
-      Write-Host "🔍 Querying runs between $startTimeLocal (7PM) and $endTimeLocal (8PM) Local Time"
-      Write-Host "🌍 Converted to UTC: $startTime to $endTime"
+      Write-Host " Querying runs between $startTimeLocal (7PM) and $endTimeLocal (8PM) Local Time"
+      Write-Host " Converted to UTC: $startTime to $endTime"
 
       $organization = "$(organization)"
       $project = "$(project)"
@@ -49,10 +49,10 @@ steps:
         $response = Invoke-RestMethod -Uri $url -Headers $headers -Method Get
 
         if ($response.count -eq 0) {
-          Write-Host "❌ No pipeline runs found in this time window."
+          Write-Host " No pipeline runs found in this time window."
           $lines += "No pipeline runs found between $startTimeLocal and $endTimeLocal"
         } else {
-          Write-Host "✅ Pipelines run between 7PM and 8PM (IST):"
+          Write-Host " Pipelines run between 7PM and 8PM (IST):"
           $lines += "Pipeline runs between 7PM and 8PM (IST):"
 
           $response.value | ForEach-Object {
@@ -69,16 +69,16 @@ steps:
         $lines | Out-File -FilePath $outputFile -Encoding utf8
 
       } catch {
-        Write-Host "❌ Failed to call Azure DevOps API: $_"
+        Write-Host "Failed to call Azure DevOps API: $_"
         "Error: $_" | Out-File -FilePath $outputFile -Encoding utf8
       }
 
   env:
     SYSTEM_ACCESSTOKEN: $(System.AccessToken)
 
-# 📤 Publish the output file so it’s downloadable from the pipeline run
+#  Publish the output file so it’s downloadable from the pipeline run
 - task: PublishBuildArtifacts@1
-  displayName: '📦 Publish pipeline run results'
+  displayName: 'Publish pipeline run results'
   inputs:
     PathtoPublish: '$(Build.ArtifactStagingDirectory)'
     ArtifactName: 'pipeline-report'

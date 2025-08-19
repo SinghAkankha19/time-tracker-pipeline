@@ -1,0 +1,48 @@
+trigger: none
+
+pool:
+  name: 'Default'
+
+variables:
+  organization: 'adiraazad180822'
+  project: 'ADO'
+  branch: 'refs/heads/main'  # Change if needed
+  azureDevOpsPAT: $(System.AccessToken) # Use OAuth token
+
+steps:
+- task: PowerShell@2
+  displayName: 'Get pipeline runs between 7AM and 8AM'
+  env:
+    SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+  inputs:
+    pwsh: true
+    script: |
+      # Define time window - today 7:00 to 8:00 AM in UTC or adjust timezone accordingly
+      $today = (Get-Date).Date
+      $startTime = $today.AddHours(7).ToString("o")
+      $endTime = $today.AddHours(8).ToString("o")
+
+      Write-Host "Fetching pipeline runs between $startTime and $endTime"
+
+      $org = "$(organization)"
+      $proj = "$(project)"
+      $branch = "$(branch)"
+
+      $url = "https://dev.azure.com/$org/$proj/_apis/build/builds?minTime=$startTime&maxTime=$endTime&branchName=$branch&api-version=7.1-preview.7"
+
+      Write-Host "Calling API: $url"
+
+      $headers = @{
+        Authorization = "Bearer $env:SYSTEM_ACCESSTOKEN"
+      }
+
+      $response = Invoke-RestMethod -Uri $url -Headers $headers -Method Get
+
+      if ($response.count -eq 0) {
+        Write-Host "No pipeline runs found in this time window."
+      } else {
+        # Extract pipeline names (definition names)
+        $pipelineNames = $response.value | Select-Object -ExpandProperty definition | Select-Object -ExpandProperty name -Unique
+        Write-Host "Pipelines run between 7AM-8AM:"
+        $pipelineNames | ForEach-Object { Write-Host "- $_" }
+      }

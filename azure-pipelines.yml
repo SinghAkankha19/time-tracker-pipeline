@@ -10,7 +10,7 @@ variables:
 
 steps:
 - task: PowerShell@2
-  displayName: 'Get pipeline runs between 7PM and 8PM'
+  displayName: 'Get pipeline runs between 7AM and 8AM'
   inputs:
     pwsh: true
     targetType: 'inline'
@@ -19,8 +19,8 @@ steps:
 
       $now = Get-Date
       $today = $now.Date
-      $startTimeLocal = $today.AddHours(19)  # 7 PM
-      $endTimeLocal = $today.AddHours(24)    # 12 AM
+      $startTimeLocal = $today.AddHours(24)  # 7 AM
+      $endTimeLocal = $today.AddHours(01)    # 8 AM
 
       $startTime = $startTimeLocal.ToUniversalTime().ToString("o")
       $endTime = $endTimeLocal.ToUniversalTime().ToString("o")

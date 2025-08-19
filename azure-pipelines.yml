@@ -19,8 +19,8 @@ steps:
 
       $now = Get-Date
       $today = $now.Date
-      $startTimeLocal = $today.AddHours(24)  # 7 AM
-      $endTimeLocal = $today.AddHours(01)    # 8 AM
+      $startTimeLocal = $today.AddHours(7)  # 7 AM
+      $endTimeLocal = $today.AddHours(8)    # 8 AM
 
       $startTime = $startTimeLocal.ToUniversalTime().ToString("o")
       $endTime = $endTimeLocal.ToUniversalTime().ToString("o")

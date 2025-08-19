@@ -6,43 +6,54 @@ pool:
 variables:
   organization: 'adiraazad180822'
   project: 'ADO'
-  branch: 'refs/heads/main'  # Change if needed
-  azureDevOpsPAT: $(System.AccessToken) # Use OAuth token
+  branch: 'refs/heads/main'
 
 steps:
 - task: PowerShell@2
   displayName: 'Get pipeline runs between 7AM and 8AM'
-  env:
-    SYSTEM_ACCESSTOKEN: $(System.AccessToken)
   inputs:
     pwsh: true
+    targetType: 'inline'  # This is required!
     script: |
-      # Define time window - today 7:00 to 8:00 AM in UTC or adjust timezone accordingly
-      $today = (Get-Date).Date
-      $startTime = $today.AddHours(7).ToString("o")
-      $endTime = $today.AddHours(8).ToString("o")
+      $ErrorActionPreference = 'Stop'
 
-      Write-Host "Fetching pipeline runs between $startTime and $endTime"
+      # Define time window in UTC (adjust as needed)
+      $now = Get-Date
+      $today = $now.Date
+      $startTime = $today.AddHours(7).ToUniversalTime().ToString("o")
+      $endTime = $today.AddHours(8).ToUniversalTime().ToString("o")
 
-      $org = "$(organization)"
-      $proj = "$(project)"
+      Write-Host "Fetching pipeline runs between $startTime and $endTime (UTC)"
+
+      $organization = "$(organization)"
+      $project = "$(project)"
       $branch = "$(branch)"
+      $token = "$(System.AccessToken)"
 
-      $url = "https://dev.azure.com/$org/$proj/_apis/build/builds?minTime=$startTime&maxTime=$endTime&branchName=$branch&api-version=7.1-preview.7"
+      $url = "https://dev.azure.com/$organization/$project/_apis/build/builds?minTime=$startTime&maxTime=$endTime&branchName=$branch&api-version=7.1-preview.7"
 
-      Write-Host "Calling API: $url"
+      Write-Host "Calling Azure DevOps REST API:"
+      Write-Host $url
 
       $headers = @{
-        Authorization = "Bearer $env:SYSTEM_ACCESSTOKEN"
+        Authorization = "Bearer $token"
       }
 
-      $response = Invoke-RestMethod -Uri $url -Headers $headers -Method Get
+      try {
+        $response = Invoke-RestMethod -Uri $url -Headers $headers -Method Get
 
-      if ($response.count -eq 0) {
-        Write-Host "No pipeline runs found in this time window."
-      } else {
-        # Extract pipeline names (definition names)
-        $pipelineNames = $response.value | Select-Object -ExpandProperty definition | Select-Object -ExpandProperty name -Unique
-        Write-Host "Pipelines run between 7AM-8AM:"
-        $pipelineNames | ForEach-Object { Write-Host "- $_" }
+        if ($response.count -eq 0) {
+          Write-Host "❌ No pipeline runs found in this time window."
+        } else {
+          Write-Host "✅ Pipelines run between 7AM-8AM:"
+          $response.value | ForEach-Object {
+            $pipelineName = $_.definition.name
+            $runTime = $_.startTime
+            Write-Host "- $pipelineName at $runTime"
+          }
+        }
+      } catch {
+        Write-Host "❌ Failed to call Azure DevOps API: $_"
       }
+  env:
+    SYSTEM_ACCESSTOKEN: $(System.AccessToken)

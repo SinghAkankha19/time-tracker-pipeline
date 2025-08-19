@@ -17,13 +17,17 @@ steps:
     script: |
       $ErrorActionPreference = 'Stop'
 
-      # Define time window in UTC (adjust as needed)
+      $localTimeZoneOffset = (Get-TimeZone).BaseUtcOffset.TotalHours
       $now = Get-Date
       $today = $now.Date
-      $startTime = $today.AddHours(7).ToUniversalTime().ToString("o")
-      $endTime = $today.AddHours(8).ToUniversalTime().ToString("o")
+      $startTimeLocal = $today.AddHours(19)  # 7 PM
+      $endTimeLocal = $today.AddHours(20)    # 8 PM
 
-      Write-Host "Fetching pipeline runs between $startTime and $endTime (UTC)"
+      $startTime = $startTimeLocal.ToUniversalTime().ToString("o")
+      $endTime = $endTimeLocal.ToUniversalTime().ToString("o")
+
+      Write-Host "🔍 Querying runs between $startTimeLocal (7PM) and $endTimeLocal (8PM) Local Time"
+      Write-Host "🌍 Converted to UTC: $startTime to $endTime"
 
       $organization = "$(organization)"
       $project = "$(project)"

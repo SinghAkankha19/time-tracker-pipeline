@@ -94,18 +94,17 @@ steps:
       git config --global user.email "akankshaazad19@gmail.com"
       git config --global user.name "SinghAkanksha19"
 
-      # Clone the repo
-      $repoUrl = "https://$(organization):$(GitPAT)@dev.azure.com/$(organization)/$(project)/_git/$(project)"
+      # Build repo URL from environment variables
+      $repoUrl = "https://$env:organization:$env:GitPAT@dev.azure.com/$env:organization/$env:project/_git/$env:project"
       $localRepoPath = "$(Build.SourcesDirectory)\tempRepo"
+
       git clone $repoUrl $localRepoPath
       cd $localRepoPath
 
-      # Create the dated reports folder
       $reportDate = Get-Date -Format "yyyy-MM-dd"
       $targetDir = "$localRepoPath\reports\$reportDate"
       New-Item -ItemType Directory -Force -Path $targetDir | Out-Null
 
-      # Copy the report file into it
       Copy-Item "$(Build.ArtifactStagingDirectory)\reports\$reportDate\pipeline_runs.md" "$targetDir\pipeline_runs.md" -Force
 
       git add reports/
@@ -113,3 +112,5 @@ steps:
       git push origin main
   env:
     GitPAT: $(GitPAT)
+    organization: $(organization)
+    project: $(project)

@@ -2,13 +2,13 @@ trigger: none
 
 pool:
   name: 'Default'
-
+  
 schedules:
-- cron: "35 2 * * 2"  # Every Tuesday at 2:35 AM UTC = 8:05 AM IST
+- cron: "35 2 * * 2"  # Every Tuesday at 2:35 AM UTC (8:05 AM IST)
   displayName: Weekly Tuesday 8:05 AM IST
   branches:
     include:
-      - main
+    - main
   always: true
 
 variables:
@@ -17,10 +17,9 @@ variables:
   branch: 'refs/heads/main'
 
 steps:
-
-# Step 1: Get pipeline runs between 7AM–8AM IST only on Tuesday
+# Step 1: Get pipeline runs between 7 AM and 8 AM IST
 - task: PowerShell@2
-  displayName: 'Get pipeline runs between 7AM and 8AM IST on Tuesday'
+  displayName: 'Get pipeline runs between 7AM and 8AM IST'
   inputs:
     pwsh: true
     targetType: 'inline'
@@ -67,14 +66,15 @@ steps:
           Write-Host "No pipeline runs found in this time window."
           $lines += "No pipeline runs found between $startTimeLocal and $endTimeLocal (IST)"
         } else {
-          Write-Host "Filtering pipeline runs between 7AM–8AM IST only on Tuesday..."
-          $lines += "### Pipeline runs between 7AM and 8AM IST on Tuesday ($reportDate):"
+          Write-Host "Filtering pipeline runs between 7AM–8AM IST on Tuesday..."
+          $lines += "### Pipeline runs between 7AM and 8AM IST ($reportDate) on Tuesday:"
 
           $response.value | ForEach-Object {
             $pipelineName = $_.definition.name
             $runTimeUtc = [datetime]$_.startTime
             $runTimeIST = $runTimeUtc.AddHours(5.5)
 
+            # Filter runs strictly between 7AM–8AM IST AND only on Tuesday
             if (
               $runTimeIST -ge $startTimeLocal -and
               $runTimeIST -lt $endTimeLocal -and
@@ -120,7 +120,8 @@ steps:
       git config --global user.email "akankshaazad19@gmail.com"
       git config --global user.name "SinghAkanksha19"
 
-      $repoUrl = "https://$env:organization:$env:GitPAT@dev.azure.com/$env:organization/$env:project/_git/$env:project"
+      # Correctly expand the GitPAT environment variable in the repo URL
+      $repoUrl = "https://$($env:organization):$($env:GitPAT)@dev.azure.com/$($env:organization)/$($env:project)/_git/$($env:project)"
       $localRepoPath = "$(Build.SourcesDirectory)\tempRepo"
 
       git clone $repoUrl $localRepoPath
@@ -137,6 +138,11 @@ steps:
       git push origin main
 
   env:
-    GitPAT: $(GitPAT)
+    GitPAT: $(GitPAT)     # <-- Make sure GitPAT is defined as a secret variable in the pipeline UI
     organization: $(organization)
     project: $(project)
+
+# Note:
+# 1. Set 'GitPAT' as a secret variable in your pipeline variables (UI)
+# 2. Ensure the PAT has "Code (Read & Write)" permission
+# 3. The schedule cron triggers this pipeline every Tuesday at 8:05 AM IST

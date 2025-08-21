@@ -74,12 +74,16 @@ steps:
             $runTimeUtc = [datetime]$_.startTime
             $runTimeIST = $runTimeUtc.AddHours(5.5)
 
-            # Filter strictly between 7:00:00 and 7:59:59 IST
-            if ($runTimeIST -ge $startTimeLocal -and $runTimeIST -lt $endTimeLocal) {
+           # Filter runs strictly between 7AM–8AM IST AND only on Tuesday
+            if (
+            $runTimeIST -ge $startTimeLocal -and
+            $runTimeIST -lt $endTimeLocal -and
+            $runTimeIST.DayOfWeek -eq [System.DayOfWeek]::Tuesday
+            ) {
               Write-Host "- $pipelineName at $runTimeIST (IST)"
-              $lines += "- $pipelineName at $runTimeIST (IST)"
-            }
-          }
+                $lines += "- $pipelineName at $runTimeIST (IST)"
+      }
+
 
           if ($lines.Count -eq 1) {
             $lines += "No qualifying pipeline runs found in the exact 7AM–8AM IST window."

@@ -108,7 +108,6 @@ steps:
     PathtoPublish: '$(Build.ArtifactStagingDirectory)'
     ArtifactName: 'pipeline-report'
 
-# Step 3: Commit and push the report to main branch in the repo
 - task: PowerShell@2
   displayName: 'Commit and push report to main branch'
   inputs:
@@ -120,12 +119,14 @@ steps:
       git config --global user.email "akankshaazad19@gmail.com"
       git config --global user.name "SinghAkanksha19"
 
-      # Correctly expand the GitPAT environment variable in the repo URL
-      $repoUrl = "https://$($env:organization):$($env:GitPAT)@dev.azure.com/$($env:organization)/$($env:project)/_git/$($env:project)"
+      $repoUrl = "https://$($env:organization):$($env:GitPAT)@$($env:organization).dev.azure.com/$($env:organization)/$($env:project)/_git/$($env:project)"
       $localRepoPath = "$(Build.SourcesDirectory)\tempRepo"
 
       git clone $repoUrl $localRepoPath
       cd $localRepoPath
+
+      # Checkout the main branch explicitly (change to master if needed)
+      git checkout main
 
       $reportDate = Get-Date -Format "yyyy-MM-dd"
       $targetDir = "$localRepoPath\reports\$reportDate"
@@ -138,11 +139,6 @@ steps:
       git push origin main
 
   env:
-    GitPAT: $(GitPAT)     # <-- Make sure GitPAT is defined as a secret variable in the pipeline UI
+    GitPAT: $(GitPAT)
     organization: $(organization)
     project: $(project)
-
-# Note:
-# 1. Set 'GitPAT' as a secret variable in your pipeline variables (UI)
-# 2. Ensure the PAT has "Code (Read & Write)" permission
-# 3. The schedule cron triggers this pipeline every Tuesday at 8:05 AM IST

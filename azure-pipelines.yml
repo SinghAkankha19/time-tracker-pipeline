@@ -4,8 +4,8 @@ pool:
   name: 'Default'
   
 schedules:
-- cron: "35 2 * * 2"  # Every Tuesday at 2:35 AM UTC (8:05 AM IST)
-  displayName: Weekly Tuesday 8:05 AM IST
+- cron: "35 2 * * 4"  # Every Thursday at 2:35 AM UTC (8:05 AM IST)
+  displayName: Weekly Thursday 8:05 AM IST
   branches:
     include:
     - main
@@ -66,27 +66,23 @@ steps:
           Write-Host "No pipeline runs found in this time window."
           $lines += "No pipeline runs found between $startTimeLocal and $endTimeLocal (IST)"
         } else {
-          Write-Host "Filtering pipeline runs between 7AM–8AM IST on Tuesday..."
-          $lines += "### Pipeline runs between 7AM and 8AM IST ($reportDate) on Tuesday:"
+          Write-Host "Filtering pipeline runs between 7AM–8AM IST..."
+          $lines += "### Pipeline runs between 7AM and 8AM IST ($reportDate):"
 
           $response.value | ForEach-Object {
             $pipelineName = $_.definition.name
             $runTimeUtc = [datetime]$_.startTime
             $runTimeIST = $runTimeUtc.AddHours(5.5)
 
-            # Filter runs strictly between 7AM–8AM IST AND only on Tuesday
-            if (
-              $runTimeIST -ge $startTimeLocal -and
-              $runTimeIST -lt $endTimeLocal -and
-              $runTimeIST.DayOfWeek -eq [System.DayOfWeek]::Tuesday
-            ) {
+            # Filter strictly between 7:00:00 and 7:59:59 IST
+            if ($runTimeIST -ge $startTimeLocal -and $runTimeIST -lt $endTimeLocal) {
               Write-Host "- $pipelineName at $runTimeIST (IST)"
               $lines += "- $pipelineName at $runTimeIST (IST)"
             }
           }
 
           if ($lines.Count -eq 1) {
-            $lines += "No qualifying pipeline runs found in the exact 7AM–8AM IST window on Tuesday."
+            $lines += "No qualifying pipeline runs found in the exact 7AM–8AM IST window."
           }
         }
 

@@ -9,24 +9,29 @@ variables:
   branch: 'refs/heads/main'
 
 steps:
+# Step 1: Get pipeline runs between 7 AM and 8 AM IST
 - task: PowerShell@2
-  displayName: 'Get pipeline runs between 7AM and 8AM'
+  displayName: 'Get pipeline runs between 7AM and 8AM IST'
   inputs:
     pwsh: true
     targetType: 'inline'
     script: |
       $ErrorActionPreference = 'Stop'
 
+      # Set time window in IST and convert to UTC
       $now = Get-Date
       $today = $now.Date
-      $startTimeLocal = $today.AddHours(7)  # 7 AM
-      $endTimeLocal = $today.AddHours(8)    # 8 AM
+      $startTimeLocal = $today.AddHours(7)   # 7 AM IST
+      $endTimeLocal = $today.AddHours(8)     # 8 AM IST
 
-      $startTime = $startTimeLocal.ToUniversalTime().ToString("o")
-      $endTime = $endTimeLocal.ToUniversalTime().ToString("o")
+      $startTimeUtc = $startTimeLocal.AddHours(-5.5)
+      $endTimeUtc = $endTimeLocal.AddHours(-5.5)
 
-      Write-Host " Querying runs between $startTimeLocal (7PM) and $endTimeLocal (8PM) Local Time"
-      Write-Host " Converted to UTC: $startTime to $endTime"
+      $startTime = $startTimeUtc.ToString("o")
+      $endTime = $endTimeUtc.ToString("o")
+
+      Write-Host "Querying pipeline runs between $startTimeLocal and $endTimeLocal IST"
+      Write-Host "Converted to UTC: $startTime to $endTime"
 
       $organization = "$(organization)"
       $project = "$(project)"
@@ -35,38 +40,45 @@ steps:
 
       $url = "https://dev.azure.com/$organization/$project/_apis/build/builds?minTime=$startTime&maxTime=$endTime&branchName=$branch&api-version=7.1-preview.7"
 
-      Write-Host "Calling Azure DevOps REST API:"
-      Write-Host $url
-
       $headers = @{
         Authorization = "Bearer $token"
       }
 
-      $outputFile = "$(Build.ArtifactStagingDirectory)\pipeline_runs.md"
+      $reportDate = Get-Date -Format "yyyy-MM-dd"
+      $reportFolder = "$(Build.ArtifactStagingDirectory)\reports\$reportDate"
+      New-Item -ItemType Directory -Force -Path $reportFolder | Out-Null
 
+      $outputFile = "$reportFolder\pipeline_runs.md"
       $lines = @()
 
       try {
         $response = Invoke-RestMethod -Uri $url -Headers $headers -Method Get
 
         if ($response.count -eq 0) {
-          Write-Host " No pipeline runs found in this time window."
-          $lines += "No pipeline runs found between $startTimeLocal and $endTimeLocal"
+          Write-Host "No pipeline runs found in this time window."
+          $lines += "No pipeline runs found between $startTimeLocal and $endTimeLocal (IST)"
         } else {
-          Write-Host " Pipelines run between 7PM and 8PM (IST):"
-          $lines += "Pipeline runs between 7PM and 8PM (IST):"
+          Write-Host "Filtering pipeline runs between 7AM–8AM IST..."
+          $lines += "### Pipeline runs between 7AM and 8AM IST ($reportDate):"
 
           $response.value | ForEach-Object {
             $pipelineName = $_.definition.name
             $runTimeUtc = [datetime]$_.startTime
             $runTimeIST = $runTimeUtc.AddHours(5.5)
 
-            Write-Host "- $pipelineName at $runTimeIST (IST)"
-            $lines += "- $pipelineName at $runTimeIST (IST)"
+            # Filter strictly between 7:00:00 and 7:59:59 IST
+            if ($runTimeIST -ge $startTimeLocal -and $runTimeIST -lt $endTimeLocal) {
+              Write-Host "- $pipelineName at $runTimeIST (IST)"
+              $lines += "- $pipelineName at $runTimeIST (IST)"
+            }
+          }
+
+          if ($lines.Count -eq 1) {
+            $lines += "No qualifying pipeline runs found in the exact 7AM–8AM IST window."
           }
         }
 
-        # Save to file
+        # Save report to file
         $lines | Out-File -FilePath $outputFile -Encoding utf8
 
       } catch {
@@ -77,12 +89,14 @@ steps:
   env:
     SYSTEM_ACCESSTOKEN: $(System.AccessToken)
 
-#  Publish the output file so it’s downloadable from the pipeline run
+# Step 2: Publish the report as a downloadable artifact
 - task: PublishBuildArtifacts@1
+  displayName: 'Publish pipeline report'
   inputs:
     PathtoPublish: '$(Build.ArtifactStagingDirectory)'
     ArtifactName: 'pipeline-report'
 
+# Step 3: Commit and push the report to main branch in the repo
 - task: PowerShell@2
   displayName: 'Commit and push report to main branch'
   inputs:
@@ -94,7 +108,6 @@ steps:
       git config --global user.email "akankshaazad19@gmail.com"
       git config --global user.name "SinghAkanksha19"
 
-      # Build repo URL from environment variables
       $repoUrl = "https://$env:organization:$env:GitPAT@dev.azure.com/$env:organization/$env:project/_git/$env:project"
       $localRepoPath = "$(Build.SourcesDirectory)\tempRepo"
 
@@ -110,6 +123,7 @@ steps:
       git add reports/
       git commit -m "Add pipeline report for $reportDate"
       git push origin main
+
   env:
     GitPAT: $(GitPAT)
     organization: $(organization)

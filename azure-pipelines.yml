@@ -103,4 +103,8 @@ steps:
   inputs:
     PathtoPublish: '$(Build.ArtifactStagingDirectory)'
     ArtifactName: 'pipeline-report'
+- task: PublishPipelineArtifact@1
+  inputs:
+    targetPath: '$(Build.ArtifactStagingDirectory)/reports/$(Build.BuildId)/pipeline_runs.md'
+    artifact: 'pipeline-report-markdown'
 

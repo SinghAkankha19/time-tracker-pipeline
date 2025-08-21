@@ -119,7 +119,7 @@ steps:
       git config --global user.email "akankshaazad19@gmail.com"
       git config --global user.name "SinghAkanksha19"
 
-     $repoUrl = "https://$($env:organization):$($env:GitPAT)@dev.azure.com/$($env:organization)/$($env:project)/_git/$($env:project)"
+      $repoUrl = "https://$($env:organization):$($env:GitPAT)@dev.azure.com/$($env:organization)/$($env:project)/_git/$($env:project)"
 
       $localRepoPath = "$(Build.SourcesDirectory)\tempRepo"
 

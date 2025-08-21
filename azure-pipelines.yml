@@ -2,6 +2,14 @@ trigger: none
 
 pool:
   name: 'Default'
+  
+schedules:
+- cron: "35 2 * * 4"  # Every Thursday at 2:35 AM UTC (8:05 AM IST)
+  displayName: Weekly Thursday 8:05 AM IST
+  branches:
+    include:
+    - main
+  always: true
 
 variables:
   organization: 'adiraazad180822'

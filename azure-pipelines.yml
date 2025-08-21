@@ -108,38 +108,3 @@ steps:
     PathtoPublish: '$(Build.ArtifactStagingDirectory)'
     ArtifactName: 'pipeline-report'
 
-- task: PowerShell@2
-  displayName: 'Commit and push report to main branch'
-  inputs:
-    pwsh: true
-    targetType: 'inline'
-    script: |
-      $ErrorActionPreference = 'Stop'
-
-      git config --global user.email "akankshaazad19@gmail.com"
-      git config --global user.name "SinghAkanksha19"
-
-      $repoUrl = "https://$($env:organization):$($env:GitPAT)@dev.azure.com/$($env:organization)/$($env:project)/_git/$($env:project)"
-
-      $localRepoPath = "$(Build.SourcesDirectory)\tempRepo"
-
-      git clone $repoUrl $localRepoPath
-      cd $localRepoPath
-
-      # Checkout the main branch explicitly (change to master if needed)
-      git checkout main
-
-      $reportDate = Get-Date -Format "yyyy-MM-dd"
-      $targetDir = "$localRepoPath\reports\$reportDate"
-      New-Item -ItemType Directory -Force -Path $targetDir | Out-Null
-
-      Copy-Item "$(Build.ArtifactStagingDirectory)\reports\$reportDate\pipeline_runs.md" "$targetDir\pipeline_runs.md" -Force
-
-      git add reports/
-      git commit -m "Add pipeline report for $reportDate"
-      git push origin main
-
-  env:
-    GitPAT: $(GitPAT)
-    organization: $(organization)
-    project: $(project)

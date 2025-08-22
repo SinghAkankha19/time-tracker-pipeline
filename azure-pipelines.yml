@@ -99,20 +99,7 @@ steps:
 
   env:
     SYSTEM_ACCESSTOKEN: $(System.AccessToken)
-- task: PowerShell@2
-  displayName: 'Verify report file exists'
-  inputs:
-    pwsh: true
-    targetType: 'inline'
-    script: |
-      $file = "$(Build.ArtifactStagingDirectory)\pipeline_runs.md"
-      Write-Host "Looking for file: $file"
-      if (Test-Path $file) {
-        Write-Host "✅ Found report"
-      } else {
-        Write-Host "❌ File not found!"
-        exit 1
-      }
+
 
 - task: PublishPipelineArtifact@1
   displayName: 'Publish pipeline_runs.md'
@@ -137,7 +124,20 @@ steps:
         Write-Host "Report not found at $src"
         exit 1
       }
-
+- task: PowerShell@2
+  displayName: 'Verify report file exists'
+  inputs:
+    pwsh: true
+    targetType: 'inline'
+    script: |
+      $file = "$(Build.ArtifactStagingDirectory)\pipeline_runs.md"
+      Write-Host "Looking for file: $file"
+      if (Test-Path $file) {
+        Write-Host "✅ Found report"
+      } else {
+        Write-Host "❌ File not found!"
+        exit 1
+      }
 # Step 4: Publish only pipeline_runs.md as a Pipeline Artifact
 - task: PublishPipelineArtifact@1
   displayName: 'Publish pipeline_runs.md as pipeline artifact'

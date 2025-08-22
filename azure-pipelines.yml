@@ -99,6 +99,26 @@ steps:
 
   env:
     SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+- task: PowerShell@2
+  displayName: 'Verify report file exists'
+  inputs:
+    pwsh: true
+    targetType: 'inline'
+    script: |
+      $file = "$(Build.ArtifactStagingDirectory)\pipeline_runs.md"
+      Write-Host "Looking for file: $file"
+      if (Test-Path $file) {
+        Write-Host "✅ Found report"
+      } else {
+        Write-Host "❌ File not found!"
+        exit 1
+      }
+
+- task: PublishPipelineArtifact@1
+  displayName: 'Publish pipeline_runs.md'
+  inputs:
+    targetPath: '$(Build.ArtifactStagingDirectory)\pipeline_runs.md'
+    artifact: 'pipeline-report-markdown'
 
 # Step 3: Copy markdown file to root of staging directory
 - task: PowerShell@2

@@ -2,7 +2,7 @@ trigger: none
 
 pool:
   name: 'Default'
-
+  
 schedules:
 - cron: "35 2 * * 4"  # Every Thursday at 2:35 AM UTC (8:05 AM IST)
   displayName: Weekly Thursday 8:05 AM IST
@@ -17,30 +17,20 @@ variables:
   branch: 'refs/heads/main'
 
 steps:
-# Step 1: Set report date as a pipeline variable
+# Step 1: Get pipeline runs between 7 AM and 8 AM IST
 - task: PowerShell@2
-  displayName: 'Set report date variable'
-  inputs:
-    pwsh: true
-    targetType: 'inline'
-    script: |
-      $reportDate = Get-Date -Format "yyyy-MM-dd"
-      Write-Host "Setting report date to $reportDate"
-      Write-Host "##vso[task.setvariable variable=ReportDate]$reportDate"
-
-# Step 2: Get pipeline runs between 7 AM and 8 AM IST
-- task: PowerShell@2
-  displayName: 'Generate pipeline_runs.md report'
+  displayName: 'Get pipeline runs between 7AM and 8AM IST'
   inputs:
     pwsh: true
     targetType: 'inline'
     script: |
       $ErrorActionPreference = 'Stop'
 
+      # Set time window in IST and convert to UTC
       $now = Get-Date
       $today = $now.Date
-      $startTimeLocal = $today.AddHours(7)
-      $endTimeLocal = $today.AddHours(8)
+      $startTimeLocal = $today.AddHours(7)   # 7 AM IST
+      $endTimeLocal = $today.AddHours(8)     # 8 AM IST
 
       $startTimeUtc = $startTimeLocal.AddHours(-5.5)
       $endTimeUtc = $endTimeLocal.AddHours(-5.5)
@@ -57,10 +47,15 @@ steps:
       $token = "$(System.AccessToken)"
 
       $url = "https://dev.azure.com/$organization/$project/_apis/build/builds?minTime=$startTime&maxTime=$endTime&branchName=$branch&api-version=7.1-preview.7"
-      $headers = @{ Authorization = "Bearer $token" }
 
-      $reportFolder = "$(Build.ArtifactStagingDirectory)\reports\$(ReportDate)"
+      $headers = @{
+        Authorization = "Bearer $token"
+      }
+
+      $reportDate = Get-Date -Format "yyyy-MM-dd"
+      $reportFolder = "$(Build.ArtifactStagingDirectory)\reports\$reportDate"
       New-Item -ItemType Directory -Force -Path $reportFolder | Out-Null
+
       $outputFile = "$reportFolder\pipeline_runs.md"
       $lines = @()
 
@@ -68,29 +63,31 @@ steps:
         $response = Invoke-RestMethod -Uri $url -Headers $headers -Method Get
 
         if ($response.count -eq 0) {
+          Write-Host "No pipeline runs found in this time window."
           $lines += "No pipeline runs found between $startTimeLocal and $endTimeLocal (IST)"
         } else {
-          $lines += "### Pipeline runs between 7AM and 8AM IST ($(ReportDate)):"
-          $found = $false
+          Write-Host "Filtering pipeline runs between 7AM–8AM IST..."
+          $lines += "### Pipeline runs between 7AM and 8AM IST ($reportDate):"
 
           $response.value | ForEach-Object {
             $pipelineName = $_.definition.name
             $runTimeUtc = [datetime]$_.startTime
             $runTimeIST = $runTimeUtc.AddHours(5.5)
 
+            # Filter strictly between 7:00:00 and 7:59:59 IST
             if ($runTimeIST -ge $startTimeLocal -and $runTimeIST -lt $endTimeLocal) {
+              Write-Host "- $pipelineName at $runTimeIST (IST)"
               $lines += "- $pipelineName at $runTimeIST (IST)"
-              $found = $true
             }
           }
 
-          if (-not $found) {
+          if ($lines.Count -eq 1) {
             $lines += "No qualifying pipeline runs found in the exact 7AM–8AM IST window."
           }
         }
 
+        # Save report to file
         $lines | Out-File -FilePath $outputFile -Encoding utf8
-        Write-Host "Report saved to: $outputFile"
 
       } catch {
         Write-Host "Failed to call Azure DevOps API: $_"
@@ -100,16 +97,26 @@ steps:
   env:
     SYSTEM_ACCESSTOKEN: $(System.AccessToken)
 
-
-- task: PublishPipelineArtifact@1
-  displayName: 'Publish pipeline_runs.md'
+# Step 2: Publish the report as a downloadable artifact
+- task: PublishBuildArtifacts@1
+  displayName: 'Publish pipeline report'
   inputs:
-    targetPath: '$(Build.ArtifactStagingDirectory)\pipeline_runs.md'
-    artifact: 'pipeline-report-markdown'
-
-# Step 3: Copy markdown file to root of staging directory
+    PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+    ArtifactName: 'pipeline-report'
+# Step 1: Set report date as a pipeline variable
 - task: PowerShell@2
-  displayName: 'Prepare report file for artifact publishing'
+  displayName: 'Set report date variable'
+  inputs:
+    pwsh: true
+    targetType: 'inline'
+    script: |
+      $reportDate = Get-Date -Format "yyyy-MM-dd"
+      Write-Host "Setting report date to $reportDate"
+      Write-Host "##vso[task.setvariable variable=ReportDate]$reportDate"
+
+# Step 2: Copy the markdown to a known path for publishing
+- task: PowerShell@2
+  displayName: 'Copy markdown file for artifact publishing'
   inputs:
     pwsh: true
     targetType: 'inline'
@@ -119,28 +126,15 @@ steps:
 
       if (Test-Path $src) {
         Copy-Item $src $dest -Force
-        Write-Host "Copied report to: $dest"
+        Write-Host "Copied report to artifact root."
       } else {
-        Write-Host "Report not found at $src"
+        Write-Host "Markdown file not found at: $src"
         exit 1
       }
-- task: PowerShell@2
-  displayName: 'Verify report file exists'
-  inputs:
-    pwsh: true
-    targetType: 'inline'
-    script: |
-      $file = "$(Build.ArtifactStagingDirectory)\pipeline_runs.md"
-      Write-Host "Looking for file: $file"
-      if (Test-Path $file) {
-        Write-Host "✅ Found report"
-      } else {
-        Write-Host "❌ File not found!"
-        exit 1
-      }
-# Step 4: Publish only pipeline_runs.md as a Pipeline Artifact
+
+# Step 3: Publish the markdown file as a pipeline artifact
 - task: PublishPipelineArtifact@1
-  displayName: 'Publish pipeline_runs.md as pipeline artifact'
+  displayName: 'Publish pipeline_runs.md as artifact'
   inputs:
     targetPath: '$(Build.ArtifactStagingDirectory)\pipeline_runs.md'
     artifact: 'pipeline-report-markdown'
